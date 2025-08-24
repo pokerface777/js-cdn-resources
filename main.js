@@ -1,137 +1,29 @@
-// 设备兼容性修复脚本
+// 现代浏览器移动设备检测
 (function() {
     'use strict';
     
-    function fixHuaweiCompatibility() {
+    // 简化的移动设备检测
+    function detectMobileDevice() {
         const ua = navigator.userAgent.toLowerCase();
         
-        const isHuawei = [
-            'huawei', 'honor', 'ela-', 'harmonyos', 'emui', 'hms',
-            'ana-', 'vog-', 'lya-', 'yal-', 'aqm-', 'jny-', 'tah-',
-            'tnp-', 'nop-', 'hw-', 'p40', 'p30', 'mate'
-        ].some(k => ua.includes(k));
-        
-        if (isHuawei) {
-            console.log('🔧 华为设备兼容性修复已启用');
-            window.__huawei_mobile_fix__ = true;
+        // 基本的移动设备标识
+        if (/mobile|android|iphone|ipad|phone/i.test(ua)) {
+            document.body.classList.add('mobile-device');
             
-            if (!window.ontouchstart) {
-                window.ontouchstart = null;
-            }
-            if (!navigator.maxTouchPoints || navigator.maxTouchPoints === 0) {
-                Object.defineProperty(navigator, 'maxTouchPoints', { 
-                    value: 10,
-                    writable: false,
-                    configurable: false
-                });
-            }
-            
-            if (typeof window.orientation === 'undefined') {
-                window.orientation = screen.width < screen.height ? 0 : 90;
-                window.addEventListener('resize', function() {
-                    window.orientation = screen.width < screen.height ? 0 : 90;
-                });
-            }
-            
-            if (!window.devicePixelRatio || window.devicePixelRatio < 1) {
-                Object.defineProperty(window, 'devicePixelRatio', {
-                    value: 2.0,
-                    writable: false,
-                    configurable: false
-                });
-            }
-            
-            function addDeviceClasses() {
-                if (document.body) {
-                    document.body.classList.add('huawei-device');
-                    if (ua.includes('ela-') || ua.includes('p40')) {
-                        document.body.classList.add('huawei-p40');
-                    }
-                    if (ua.includes('harmonyos')) {
-                        document.body.classList.add('harmonyos-device');
-                    }
-                }
-            }
-            
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', addDeviceClasses);
-            } else {
-                addDeviceClasses();
+            // 添加具体设备类型
+            if (/iphone|ipad|ipod/i.test(ua)) {
+                document.body.classList.add('ios-device');
+            } else if (/android/i.test(ua)) {
+                document.body.classList.add('android-device');
             }
         }
     }
     
-    function fixAppleCompatibility() {
-        const ua = navigator.userAgent.toLowerCase();
-        
-        const isApple = [
-            'iphone', 'ipad', 'ipod', 'macintosh', 'safari'
-        ].some(k => ua.includes(k));
-        
-        const isSafari = /safari/i.test(ua) && !/chrome/i.test(ua);
-        
-        if (isApple) {
-            console.log('🍎 苹果设备兼容性修复已启用');
-            window.__apple_mobile_fix__ = true;
-            window.__safari_browser__ = isSafari;
-            
-            if (!window.ontouchstart) {
-                window.ontouchstart = null;
-            }
-            if (!navigator.maxTouchPoints || navigator.maxTouchPoints === 0) {
-                Object.defineProperty(navigator, 'maxTouchPoints', { 
-                    value: 5,
-                    writable: false,
-                    configurable: false
-                });
-            }
-            
-            if (typeof window.orientation === 'undefined') {
-                window.orientation = screen.width < screen.height ? 0 : 90;
-                window.addEventListener('resize', function() {
-                    window.orientation = screen.width < screen.height ? 0 : 90;
-                });
-            }
-            
-            if (!window.devicePixelRatio || window.devicePixelRatio < 1) {
-                Object.defineProperty(window, 'devicePixelRatio', {
-                    value: 2.0,
-                    writable: false,
-                    configurable: false
-                });
-            }
-            
-            function addAppleDeviceClasses() {
-                if (document.body) {
-                    document.body.classList.add('apple-device');
-                    if (ua.includes('iphone')) {
-                        document.body.classList.add('iphone-device');
-                    }
-                    if (ua.includes('ipad')) {
-                        document.body.classList.add('ipad-device');
-                    }
-                    if (isSafari) {
-                        document.body.classList.add('safari-browser');
-                    }
-                }
-            }
-            
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', addAppleDeviceClasses);
-            } else {
-                addAppleDeviceClasses();
-            }
-        }
-    }
-    
-    fixHuaweiCompatibility();
-    fixAppleCompatibility();
-    
+    // DOM加载完成后执行
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function() {
-            fixHuaweiCompatibility();
-            fixAppleCompatibility();
-        });
+        document.addEventListener('DOMContentLoaded', detectMobileDevice);
+    } else {
+        detectMobileDevice();
     }
 })();
 
@@ -389,14 +281,11 @@ new Vue({
             }
         },
         
-        // 检测是否为真实移动设备
+        // 简化的移动设备检测
         isMobileDevice() {
             const ua = navigator.userAgent.toLowerCase();
             
-            if (window.__apple_mobile_fix__ || ua.includes('iphone') || ua.includes('ipad') || ua.includes('ipod')) {
-                return true;
-            }
-            
+            // 检查常见的移动APP环境
             if (this.isDouyinAPP() || this.isKuaishouAPP()) {
                 return true;
             }
@@ -405,37 +294,17 @@ new Vue({
                 return true;
             }
             
-            if (window.__huawei_mobile_fix__) {
+            // 基本的移动设备检测
+            if (/mobile|android|iphone|ipad|phone/i.test(ua)) {
                 return true;
             }
             
-            if (!/mobile|android|iphone|ipad|phone|blackberry|opera mini|windows ce|nokia|sony/i.test(ua)) {
-                return false;
+            // 触摸设备检测
+            if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+                return true;
             }
             
-            const simulatorKeywords = [
-                'simulator', 'emulator', 'virtual', 'genymotion', 
-                'bluestacks', 'noxplayer', 'android sdk', 'google sdk'
-            ];
-            
-            for (let keyword of simulatorKeywords) {
-                if (ua.includes(keyword.toLowerCase())) {
-                    return false;
-                }
-            }
-            
-            if (!('ontouchstart' in window) && !navigator.maxTouchPoints && 
-                !ua.includes('mobile') && !ua.includes('android') && !ua.includes('iphone')) {
-                return false;
-            }
-            
-            if (screen.width > 1200 || screen.height > 1920) {
-                if (!ua.includes('mobile') && !ua.includes('android') && !ua.includes('iphone')) {
-                    return false;
-                }
-            }
-            
-            return true;
+            return false;
         },
         
         isDouyinAPP() {
@@ -486,83 +355,13 @@ new Vue({
         validateURL() {
             const currentURL = window.location.href;
             const pathname = window.location.pathname;
-            const ua = navigator.userAgent.toLowerCase();
             
-            if (window.__apple_mobile_fix__ || ua.includes('iphone') || ua.includes('ipad') || ua.includes('ipod')) {
-                const criticalInvalidPatterns = [
-                    /\/admin\//,
-                    /\/api\//,
-                    /\/debug\//
-                ];
-                
-                for (let pattern of criticalInvalidPatterns) {
-                    if (pattern.test(currentURL)) {
-                        return false;
-                    }
-                }
-                
-                if (pathname.includes('/newh5') || pathname.includes('newh5') || 
-                    currentURL.includes('info=')) {
-                    return true;
-                }
-                
-                return true;
-            }
-            
-            if (this.isDouyinAPP() || this.isKuaishouAPP()) {
-                const criticalInvalidPatterns = [
-                    /\/admin\//,
-                    /\/api\//,
-                    /\/debug\//
-                ];
-                
-                for (let pattern of criticalInvalidPatterns) {
-                    if (pattern.test(currentURL)) {
-                        return false;
-                    }
-                }
-                
-                return true;
-            }
-            
-            if (this.isWeixinAPP() || this.isQQAPP_Mobile()) {
-                const criticalInvalidPatterns = [
-                    /\/admin\//,
-                    /\/api\//,
-                    /\/debug\//
-                ];
-                
-                for (let pattern of criticalInvalidPatterns) {
-                    if (pattern.test(currentURL)) {
-                        return false;
-                    }
-                }
-                
-                return true;
-            }
-            
-            if (window.__huawei_mobile_fix__) {
-                const criticalInvalidPatterns = [
-                    /\/admin\//,
-                    /\/api\//,
-                    /\/debug\//
-                ];
-                
-                for (let pattern of criticalInvalidPatterns) {
-                    if (pattern.test(currentURL)) {
-                        return false;
-                    }
-                }
-                
-                return true;
-            }
-            
+            // 检查禁止访问的路径
             const invalidPatterns = [
-                /#\/d\/[a-zA-Z0-9]+/,
                 /\/admin\//,
                 /\/api\//,
-                /\/test\//,
-                /\/debug\//
+                /\/debug\//,
+                /\/test\//
             ];
             
             for (let pattern of invalidPatterns) {
@@ -571,18 +370,18 @@ new Vue({
                 }
             }
             
-            if (!pathname.includes('/newh5') && !pathname.endsWith('/newh5')) {
-                return false;
+            // 允许的路径模式
+            if (pathname.includes('/newh5') || pathname.includes('newh51') || 
+                currentURL.includes('info=')) {
+                return true;
             }
             
-            return true;
+            return true; // 默认允许访问
         },
         
         isDebugEnvironment() {
-            const ua = navigator.userAgent.toLowerCase();
-            
-            if (window.__apple_mobile_fix__ || ua.includes('iphone') || ua.includes('ipad') || ua.includes('ipod')) {
-                console.log('🍎 苹果设备跳过调试环境检测');
+            // 移动设备和APP环境跳过调试检测
+            if (this.isMobileDevice()) {
                 return false;
             }
             
@@ -594,37 +393,14 @@ new Vue({
                 return false;
             }
             
-            if (window.__huawei_mobile_fix__) {
-                return false;
-            }
-            
+            // 简化的开发者工具检测
             let devtools = false;
-            const threshold = 160;
-            
-            try {
-                if (window.outerHeight - window.innerHeight > threshold || 
-                    window.outerWidth - window.outerWidth > threshold) {
-                    devtools = true;
-                }
-            } catch (e) {
-                // 忽略错误
-            }
             
             try {
                 const start = performance.now();
                 debugger;
                 const end = performance.now();
                 if (end - start > 100) {
-                    devtools = true;
-                }
-            } catch (e) {
-                // 忽略错误
-            }
-            
-            try {
-                if (typeof console !== 'undefined' && 
-                    console.clear && 
-                    console.clear.toString().indexOf('[native code]') === -1) {
                     devtools = true;
                 }
             } catch (e) {
@@ -709,10 +485,6 @@ new Vue({
                 overlayEl.classList.remove('show');
             }
             document.body.classList.remove('modal-open');
-            
-            if (window.__huawei_mobile_fix__) {
-                console.log('🔧 华为设备弹窗关闭优化已应用');
-            }
             
             setTimeout(() => {
                 this.dialog.pay.status = false
@@ -887,27 +659,8 @@ new Vue({
                             }
                             document.body.classList.add('modal-open');
                             
-                            // 简单调试
+                            // 弹窗显示成功
                             console.log('✅ 弹窗已显示，支付数据:', vm.dialog.pay.data.length, '个选项');
-                            
-                            // 检查图标大小
-                            setTimeout(() => {
-                                const icons = document.querySelectorAll('.payment-icon');
-                                console.log('🔍 检查图标数量:', icons.length);
-                                icons.forEach((icon, index) => {
-                                    const computed = window.getComputedStyle(icon);
-                                    console.log(`图标 ${index}:`, {
-                                        宽度: computed.width,
-                                        高度: computed.height,
-                                        字体大小: computed.fontSize,
-                                        显示文字: icon.textContent
-                                    });
-                                });
-                            }, 300);
-                            
-                            if (window.__huawei_mobile_fix__) {
-                                console.log('🔧 华为设备弹窗居中优化已应用');
-                            }
                         });
                     } else {
                         vant.Toast.fail('获取支付信息失败');
