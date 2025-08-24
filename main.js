@@ -1,3 +1,114 @@
+// API域名配置系统
+(function(window) {
+    'use strict';
+    
+    // API配置对象
+    const APIConfig = {
+        // 默认配置
+        baseURL: '000.duanzai.me', // 您的配置域名
+        protocol: 'https', // 协议 http 或 https
+        version: '1.0.0',
+        timeout: 30000,
+        debug: true,
+        
+        // API接口路径配置
+        endpoints: {
+            // 分类接口
+            category: '/index/index/cat',
+            // 视频列表接口
+            videoList: '/index/index/vlist',
+            // 支付接口
+            payment: '/index/index/pays',
+            // 登录接口
+            login: '/api/resource/login',
+            // 视频播放接口
+            video: '/fvideo'
+        },
+        
+        // 获取完整的API URL
+        getFullURL: function(endpoint) {
+            const path = this.endpoints[endpoint] || endpoint;
+            
+            // 如果传入的是完整URL，直接返回
+            if (path.startsWith('http://') || path.startsWith('https://')) {
+                return path;
+            }
+            
+            // 如果baseURL为空，使用当前域名
+            if (!this.baseURL) {
+                return path;
+            }
+            
+            // 构建完整URL
+            const protocol = this.protocol || 'https';
+            const baseURL = this.baseURL.replace(/^https?:\/\//, ''); // 移除协议前缀
+            return `${protocol}://${baseURL}${path}`;
+        },
+        
+        // 更新基础URL
+        updateBaseURL: function(newBaseURL, newProtocol) {
+            this.baseURL = newBaseURL;
+            if (newProtocol) {
+                this.protocol = newProtocol;
+            }
+            
+            if (this.debug) {
+                console.log('🔧 API配置已更新:', {
+                    baseURL: this.baseURL,
+                    protocol: this.protocol,
+                    fullExample: this.getFullURL('category')
+                });
+            }
+        },
+        
+        // 快速配置方法
+        quickSetup: function(domain, protocol = 'https') {
+            this.updateBaseURL(domain, protocol);
+            return this;
+        },
+        
+        // 验证配置
+        validateConfig: function() {
+            const errors = [];
+            
+            if (!this.baseURL) {
+                errors.push('baseURL不能为空');
+            }
+            
+            if (!this.protocol || !['http', 'https'].includes(this.protocol)) {
+                errors.push('protocol必须为http或https');
+            }
+            
+            return {
+                isValid: errors.length === 0,
+                errors: errors
+            };
+        },
+        
+        // 获取所有API列表
+        getAllAPIs: function() {
+            const apis = {};
+            for (let key in this.endpoints) {
+                apis[key] = this.getFullURL(key);
+            }
+            return apis;
+        }
+    };
+    
+    // 导出到全局
+    window.APIConfig = APIConfig;
+    
+    // 初始化日志
+    if (APIConfig.debug) {
+        console.log('🚀 API配置已加载:', {
+            baseURL: APIConfig.baseURL,
+            protocol: APIConfig.protocol,
+            endpoints: Object.keys(APIConfig.endpoints)
+        });
+    }
+    
+})(window);
+
 // 现代浏览器移动设备检测
 (function() {
     'use strict';
@@ -165,7 +276,7 @@ new Vue({
         itemindex: 0,
         activeClass: -1,
         cat: [],
-        ds_title: "demo",
+        ds_title: "",
         ds_img: "",
         loading: false,
         finished: false,
@@ -229,8 +340,7 @@ new Vue({
         this.getPayList();
         let vm = this;
         
-        // 初始化示例数据 - 动态加载
-        vm.initializeData();
+        // 数据将通过API动态加载
         
         vm.getCat();
         vm.doGetList(-1,'cat');
@@ -514,7 +624,7 @@ new Vue({
             }
 
             $.ajax({
-                url: "/api/resource/login",
+                url: APIConfig.getFullURL('login'),
                 type: 'POST',
                 dataType: 'JSON',
                 data: {'pwd':vm.password,'ldk':vm.ldk,'type':vm.rkType},
@@ -587,7 +697,7 @@ new Vue({
                     'f': vm.decryptedParams.f,
                     'murmur': vm.decryptedParams.fingerprint
                 };
-                let url = window.location.protocol + '//' + window.location.host + '/fvideo';
+                let url = APIConfig.getFullURL('video');
 
                 var temp = document.createElement("form");
                 temp.action = url;
@@ -605,7 +715,7 @@ new Vue({
             }
             
             $.ajax({
-                url: "/index/index/pays",
+                url: APIConfig.getFullURL('payment'),
                 type: 'POST',
                 dataType: 'JSON',
                 data: {
@@ -724,7 +834,7 @@ new Vue({
             };
 
             $.ajax({
-                url: '/index/index/vlist',
+                url: APIConfig.getFullURL('videoList'),
                 type: 'POST',
                 dataType: 'JSON',
                 data: requestParams,
@@ -769,7 +879,7 @@ new Vue({
         getCat() {
             let vm = this;
             $.ajax({
-                url: '/index/index/cat',
+                url: APIConfig.getFullURL('category'),
                 type: 'POST',
                 dataType: 'JSON',
                 data: {
@@ -921,57 +1031,6 @@ new Vue({
                 // 我的页面
                 console.log('我的页面功能');
             }
-        },
-        
-        // 初始化数据方法
-        initializeData() {
-            // 初始化示例数据
-            this.list = [
-                {
-                    id: 1,
-                    title: "精彩视频内容1",
-                    img: "https://via.placeholder.com/300x200/333/fff?text=Video1",
-                    duration: "10:30",
-                    rand: 123,
-                    money: 9.9,
-                    pay: 0
-                },
-                {
-                    id: 2,
-                    title: "精彩视频内容2",
-                    img: "https://via.placeholder.com/300x200/333/fff?text=Video2",
-                    duration: "15:45",
-                    rand: 456,
-                    money: 19.9,
-                    pay: 0
-                },
-                {
-                    id: 3,
-                    title: "精彩视频内容3",
-                    img: "https://via.placeholder.com/300x200/333/fff?text=Video3",
-                    duration: "08:20",
-                    rand: 789,
-                    money: 29.9,
-                    pay: 0
-                },
-                {
-                    id: 4,
-                    title: "精彩视频内容4",
-                    img: "https://via.placeholder.com/300x200/333/fff?text=Video4",
-                    duration: "12:15",
-                    rand: 234,
-                    money: 39.9,
-                    pay: 0
-                }
-            ];
-            
-            this.cat = [
-                {id: 1, name: "热门"},
-                {id: 2, name: "最新"},
-                {id: 3, name: "推荐"},
-                {id: 4, name: "分类1"},
-                {id: 5, name: "分类2"}
-            ];
         }
     },
     computed: {
