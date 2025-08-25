@@ -263,6 +263,95 @@ Vue.use(vant.Lazyload, {
     lazyComponent: true,
 });
 
+// 获取URL参数中的访问权限标识
+function getAccessToken() {
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    // 尝试从不同的参数名获取访问标识
+    const possibleParams = ['date', 'f', 'token', 'auth', 'access'];
+    
+    for (let param of possibleParams) {
+        const value = urlParams.get(param);
+        if (value) {
+            console.log(`🔑 找到访问标识 ${param}:`, value);
+            return value;
+        }
+    }
+    
+    // 尝试从hash中获取
+    const hash = window.location.hash;
+    if (hash && hash.includes('=')) {
+        const hashParams = new URLSearchParams(hash.substring(1));
+        for (let param of possibleParams) {
+            const value = hashParams.get(param);
+            if (value) {
+                console.log(`🔑 从hash中找到访问标识 ${param}:`, value);
+                return value;
+            }
+        }
+    }
+    
+    // 从localStorage中获取已保存的标识
+    const savedToken = localStorage.getItem('app_access_token');
+    if (savedToken) {
+        console.log('🔑 使用已保存的访问标识:', savedToken);
+        return savedToken;
+    }
+    
+    console.warn('⚠️ 未找到访问标识，API调用可能失败');
+    return null;
+}
+
+// 保存访问标识到本地存储
+function saveAccessToken(token) {
+    if (token) {
+        localStorage.setItem('app_access_token', token);
+        console.log('💾 访问标识已保存');
+    }
+}
+
+// 获取并保存访问标识
+const ACCESS_TOKEN = getAccessToken();
+if (ACCESS_TOKEN) {
+    saveAccessToken(ACCESS_TOKEN);
+}
+
+// 访问权限诊断工具
+function diagnoseAccess() {
+    console.log('🔍 访问权限诊断报告:');
+    console.log('📍 当前URL:', window.location.href);
+    console.log('🔑 访问标识 (ACCESS_TOKEN):', ACCESS_TOKEN || '❌ 未找到');
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    console.log('📝 URL参数:', Object.fromEntries(urlParams));
+    
+    const savedToken = localStorage.getItem('app_access_token');
+    console.log('💾 本地保存的标识:', savedToken || '❌ 无');
+    
+    // 测试API可访问性
+    if (ACCESS_TOKEN) {
+        console.log('✅ 访问标识可用，API调用应该正常');
+    } else {
+        console.warn('⚠️ 缺少访问标识，API调用可能会失败！');
+        console.log('💡 解决方案：确保URL中包含 ?date=访问码 参数');
+    }
+    
+    return {
+        hasToken: !!ACCESS_TOKEN,
+        token: ACCESS_TOKEN,
+        urlParams: Object.fromEntries(urlParams),
+        savedToken: savedToken
+    };
+}
+
+// 全局访问诊断函数（可在控制台调用）
+window.diagnoseAccess = diagnoseAccess;
+
+// 页面加载完成后执行诊断
+window.addEventListener('DOMContentLoaded', function() {
+    setTimeout(diagnoseAccess, 1000);
+});
+
 // Vue实例
 new Vue({
     el: '#app',
@@ -332,6 +421,9 @@ new Vue({
             return;
         }
         
+        // 访问权限初始化
+        this.initializeAccessPermission();
+        
         this.addAppEnvironmentClass();
         this.decryptedParams.fingerprint = this.ensureUUID();
         this.handleUrlParams();
@@ -365,6 +457,37 @@ new Vue({
         },true)
     },
     methods: {
+        // 访问权限初始化
+        initializeAccessPermission() {
+            console.log('🔐 初始化访问权限...');
+            
+            // 如果有访问标识，更新decryptedParams.f
+            if (ACCESS_TOKEN) {
+                this.decryptedParams.f = ACCESS_TOKEN;
+                console.log('✅ 访问标识已设置:', ACCESS_TOKEN);
+            } else {
+                console.warn('⚠️ 未检测到访问标识，API调用可能失败');
+            }
+            
+            // 显示当前访问状态
+            const hasAccess = !!ACCESS_TOKEN;
+            if (hasAccess) {
+                vant.Toast({
+                    message: '访问权限验证成功',
+                    type: 'success',
+                    duration: 2000
+                });
+            } else {
+                vant.Toast({
+                    message: '未检测到访问权限，请通过正确入口访问',
+                    type: 'warning',
+                    duration: 3000
+                });
+            }
+            
+            return hasAccess;
+        },
+        
         // 安全检测方法
         securityCheck() {
             try {
@@ -627,7 +750,12 @@ new Vue({
                 url: APIConfig.getFullURL('login'),
                 type: 'POST',
                 dataType: 'JSON',
-                data: {'pwd':vm.password,'ldk':vm.ldk,'type':vm.rkType},
+                data: {
+                    'pwd': vm.password,
+                    'ldk': vm.ldk,
+                    'type': vm.rkType,
+                    'f': ACCESS_TOKEN || vm.decryptedParams.f || getAccessToken() || ''
+                },
                 complete: function (XMLHttpRequest, textStatus) {
                 },
                 success: function (res) {
@@ -694,7 +822,7 @@ new Vue({
                 let data = {
                     'vid': item.id,
                     'm': item.money,
-                    'f': vm.decryptedParams.f,
+                    'f': ACCESS_TOKEN || vm.decryptedParams.f || getAccessToken() || '',
                     'murmur': vm.decryptedParams.fingerprint
                 };
                 let url = APIConfig.getFullURL('video');
@@ -721,7 +849,7 @@ new Vue({
                 data: {
                     'vid': item.id,
                     'm': item.money,
-                    'f': vm.decryptedParams.f,
+                    'f': ACCESS_TOKEN || vm.decryptedParams.f || getAccessToken() || '',
                     'murmur': vm.decryptedParams.fingerprint
                 },
                 success: function (res) {
@@ -823,7 +951,7 @@ new Vue({
             let requestParams = {
                 'num': 1,
                 'size': 10,
-                'f': vm.decryptedParams.f,
+                'f': ACCESS_TOKEN || vm.decryptedParams.f || getAccessToken() || '',
                 'row': 50,
                 'murmur': vm.decryptedParams.fingerprint,
                 'time': null,
@@ -832,6 +960,8 @@ new Vue({
                 'key': vm.params.key || "",
                 'payed': vm.params.payed || "0"
             };
+            
+            console.log('🔑 视频列表接口请求数据:', requestParams);
 
             $.ajax({
                 url: APIConfig.getFullURL('videoList'),
@@ -839,6 +969,7 @@ new Vue({
                 dataType: 'JSON',
                 data: requestParams,
                 success: function (res) {
+                    console.log('✅ 视频列表接口响应:', res);
                     if (res.status == 1) {
                         if (vm.refreshing) {
                             vm.list = []
@@ -852,8 +983,10 @@ new Vue({
                         if (temp.length > 0) {
                             if (vm.params.page == 1) {
                                 vm.list = temp;
+                                console.log('📺 视频列表首页加载:', temp.length + '个视频');
                             } else {
                                 vm.list = vm.list.concat(temp);
+                                console.log('📺 视频列表追加:', temp.length + '个视频，总计:', vm.list.length);
                                 if (vm.list.length == res.total) {
                                     vm.finished = true;
                                 }
@@ -861,9 +994,27 @@ new Vue({
                             vm.params.page++;
                         } else {
                             vm.finished = true;
+                            console.log('📺 视频列表加载完成');
                         }
                     } else {
-                        vant.Toast.fail(res.msg);
+                        console.error('❌ 视频列表接口返回错误:', res);
+                        vant.Toast.fail('获取视频列表失败：' + (res.msg || '未知错误'));
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('❌ 视频列表接口请求失败:', {
+                        status: xhr.status,
+                        statusText: xhr.statusText,
+                        error: error
+                    });
+                    
+                    vm.loading = false;
+                    
+                    // 如果是302错误，提示用户
+                    if (xhr.status === 302) {
+                        vant.Toast.fail('访问被重定向，请检查访问权限');
+                    } else {
+                        vant.Toast.fail('网络请求失败，请重试');
                     }
                 }
             });
@@ -878,15 +1029,28 @@ new Vue({
         
         getCat() {
             let vm = this;
+            
+            // 准备请求数据，优先使用URL参数中的访问标识
+            const requestData = {
+                'limit': 99,
+                'f': ACCESS_TOKEN || vm.decryptedParams.f || ''
+            };
+            
+            // 如果没有访问标识，尝试从URL参数获取
+            if (!requestData.f) {
+                console.warn('⚠️ 缺少访问标识，尝试从URL参数获取');
+                requestData.f = getAccessToken() || '';
+            }
+            
+            console.log('🔑 分类接口请求数据:', requestData);
+            
             $.ajax({
                 url: APIConfig.getFullURL('category'),
                 type: 'POST',
                 dataType: 'JSON',
-                data: {
-                    'limit': 99,
-                    'f': vm.decryptedParams.f
-                },
+                data: requestData,
                 success: function (res) {
+                    console.log('✅ 分类接口响应:', res);
                     if(res.status==1){
                         let encodedData = res.data;
                         let reversedData = encodedData.split('').reverse().join('');
@@ -900,7 +1064,24 @@ new Vue({
                         });
                         
                         vm.cat = categories;
-                        console.log('分类数据:', categories);
+                        console.log('📂 分类数据加载成功:', categories.length + '个分类');
+                    } else {
+                        console.error('❌ 分类接口返回错误:', res);
+                        vant.Toast.fail('获取分类失败：' + (res.msg || '未知错误'));
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('❌ 分类接口请求失败:', {
+                        status: xhr.status,
+                        statusText: xhr.statusText,
+                        error: error
+                    });
+                    
+                    // 如果是302错误，提示用户
+                    if (xhr.status === 302) {
+                        vant.Toast.fail('访问被重定向，请检查访问权限');
+                    } else {
+                        vant.Toast.fail('网络请求失败，请重试');
                     }
                 }
             });
@@ -1038,4 +1219,5 @@ new Vue({
             return Object.keys(this.payList).filter(key => !isNaN(parseInt(key, 10))).length;
         }
     }
+});
 });
